@@ -14,6 +14,27 @@ permissions:
   packages: write
 
 jobs:
+  compute-version:
+    runs-on: ubuntu-latest
+    outputs:
+      # Exactly matches one of the tags build-and-push-image pushes for
+      # this image, so the chart's appVersion (and therefore its default
+      # image.tag) always points at an image that actually exists.
+      app_version: ${{ steps.version.outputs.app_version }}
+      chart_version: ${{ steps.version.outputs.chart_version }}
+    steps:
+      - id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version="${GITHUB_REF#refs/tags/v}"
+            echo "app_version=${version}" >> "$GITHUB_OUTPUT"
+            echo "chart_version=${version}" >> "$GITHUB_OUTPUT"
+          else
+            short_sha="${GITHUB_SHA:0:7}"
+            echo "app_version=main-${short_sha}" >> "$GITHUB_OUTPUT"
+            echo "chart_version=0.0.0-edge.g${short_sha}" >> "$GITHUB_OUTPUT"
+          fi
+
   build-and-push-image:
     runs-on: ubuntu-latest
     steps:
@@ -52,6 +73,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   package-and-push-chart:
+    needs: compute-version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,22 +84,13 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Compute chart version
-        id: version
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "version=0.0.0-edge.g$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Package chart
         run: |
           helm package charts/saml-idp \
-            --version "${{ steps.version.outputs.version }}" \
-            --app-version "$(yq '.appVersion' charts/saml-idp/Chart.yaml)" \
+            --version "${{ needs.compute-version.outputs.chart_version }}" \
+            --app-version "${{ needs.compute-version.outputs.app_version }}" \
             --destination dist
 
       - name: Push chart
         run: |
-          helm push dist/saml-idp-"${{ steps.version.outputs.version }}".tgz "${{ env.CHART_REPO }}"
+          helm push dist/saml-idp-"${{ needs.compute-version.outputs.chart_version }}".tgz "${{ env.CHART_REPO }}"

@@ -68,7 +68,7 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
           else
-            echo "version=0.0.0-edge.$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+            echo "version=0.0.0-edge.g$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Package chart

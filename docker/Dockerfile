@@ -4,7 +4,9 @@ ARG SAML_IDP_VERSION=1.2.1
 
 WORKDIR /app
 
-RUN npm install --omit=dev saml-idp@${SAML_IDP_VERSION} \
+RUN apk add --no-cache git \
+    && npm install --omit=dev saml-idp@${SAML_IDP_VERSION} \
+    && apk del git \
     && addgroup -S saml-idp \
     && adduser -S saml-idp -G saml-idp \
     && chown -R saml-idp:saml-idp /app

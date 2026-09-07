@@ -1,0 +1,18 @@
+saml-idp has been deployed as {{ include "saml-idp.fullname" . }} in namespace {{ .Release.Namespace }}.
+
+1. Get the application URL:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ (first .paths).path }}
+{{- end }}
+{{- else if contains "LoadBalancer" .Values.service.type }}
+  Run the following to get the external IP, it may take a few minutes:
+  kubectl get svc -w {{ include "saml-idp.fullname" . }} -n {{ .Release.Namespace }}
+{{- else }}
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "saml-idp.fullname" . }} 7000:{{ .Values.service.port }}
+  Then visit http://localhost:7000
+{{- end }}
+
+2. SAML metadata is served at /metadata on the above URL.
+
+3. Signing certificate/key are sourced from Secret "{{ include "saml-idp.certSecretName" . }}".

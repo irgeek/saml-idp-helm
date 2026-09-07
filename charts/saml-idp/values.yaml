@@ -1,0 +1,178 @@
+# -- Number of pod replicas
+replicaCount: 1
+
+image:
+  # -- Container image repository
+  repository: ghcr.io/irgeek/saml-idp-helm/saml-idp
+  # -- Container image tag. Defaults to the chart's appVersion when empty
+  tag: ""
+  # -- Container image pull policy
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets for private registries
+imagePullSecrets: []
+
+# -- Override the chart's generated name
+nameOverride: ""
+# -- Override the chart's generated fullname
+fullnameOverride: ""
+
+idp:
+  # -- Listener host inside the container
+  host: "0.0.0.0"
+  # -- Listener port inside the container
+  port: 7000
+  # -- IdP issuer URI (--issuer)
+  issuer: "urn:example:idp"
+  # -- SP assertion consumer URL (--acs). Required.
+  acsUrl: ""
+  # -- SP audience URI (--aud). Required.
+  audience: ""
+  # -- SP single logout URL (--slo)
+  sloUrl: ""
+  # -- SP issuer/entity URI, if different from audience (--spId)
+  serviceProviderId: ""
+  # -- Authentication context class reference (--acr)
+  authnContextClassRef: ""
+  # -- Path (inside an extraVolume) to an authn context declaration XML file (--acd)
+  authnContextDecl: ""
+  # -- Disable the SP's ability to override the ACS URL in the AuthnRequest (--disableRequestAcsUrl)
+  disableRequestAcsUrl: false
+  # -- Sign the SAML response (--signResponse)
+  signResponse: true
+  # -- Encrypt the assertion using the SP's certificate (--encryptAssertion)
+  encryptAssertion: false
+  # -- PEM-encoded SP certificate used for assertion encryption (--encryptionCert), inlined into a Secret
+  encryptionCert: ""
+  # -- Default SAML RelayState (--relayState)
+  relayState: ""
+  # -- Create a new session for every authn request (--rollSession)
+  rollSession: false
+  # -- Extra raw CLI arguments appended after the generated ones
+  extraArgs: []
+
+certificate:
+  # -- Use a pre-existing Secret containing the IdP signing certificate/key.
+  # Mutually exclusive with certificate.certManager.enabled -- if neither is
+  # set, the chart fails to render.
+  existingSecret:
+    # -- Name of the existing Secret (type kubernetes.io/tls or plain Opaque)
+    name: ""
+    # -- Key within the Secret holding the PEM certificate
+    certKey: tls.crt
+    # -- Key within the Secret holding the PEM private key
+    keyKey: tls.key
+
+  certManager:
+    # -- Have the chart create a cert-manager Certificate to issue the signing cert/key
+    enabled: false
+    issuerRef:
+      # -- Name of the cert-manager Issuer/ClusterIssuer to use
+      name: ""
+      # -- Kind of issuer: Issuer or ClusterIssuer
+      kind: ClusterIssuer
+      # -- API group of the issuer
+      group: cert-manager.io
+    # -- Name of the Secret cert-manager will write the cert/key to.
+    # Defaults to "<fullname>-tls" when empty
+    secretName: ""
+    # -- Certificate common name
+    commonName: ""
+    # -- Additional DNS SANs for the certificate
+    dnsNames: []
+    # -- Certificate validity duration
+    duration: 8760h
+    # -- Renew the certificate this long before expiry
+    renewBefore: 720h
+    privateKey:
+      # -- Private key algorithm
+      algorithm: RSA
+      # -- Private key size in bits
+      size: 2048
+
+config:
+  # -- Attribute definitions returned in the SAML assertion, rendered into config.js.
+  # Ignored when config.existingConfigMap is set.
+  metadata:
+    - id: email
+      optional: false
+      displayName: E-Mail Address
+      description: The user's email address
+      multiValue: false
+  # -- User profile attribute values, rendered into config.js.
+  # Ignored when config.existingConfigMap is set.
+  user:
+    userName: saml.jackson@example.com
+    email: saml.jackson@example.com
+    firstName: Saml
+    lastName: Jackson
+  # -- Name of a pre-existing ConfigMap containing a config.js key, used instead
+  # of rendering one from config.metadata/config.user
+  existingConfigMap: ""
+
+service:
+  # -- Kubernetes Service type
+  type: ClusterIP
+  # -- Service port
+  port: 80
+  # -- Container target port
+  targetPort: 7000
+
+ingress:
+  # -- Create an Ingress resource
+  enabled: false
+  # -- IngressClass name
+  className: ""
+  # -- Extra annotations for the Ingress
+  annotations: {}
+  # -- Ingress host rules
+  hosts:
+    - host: saml-idp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  # -- Ingress TLS configuration
+  tls: []
+
+# -- Pod resource requests/limits
+resources: {}
+
+# -- Pod-level securityContext
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+
+# -- Container-level securityContext
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+serviceAccount:
+  # -- Create a ServiceAccount
+  create: true
+  # -- Annotations for the ServiceAccount
+  annotations: {}
+  # -- Name of the ServiceAccount to use. Generated from the fullname when empty
+  name: ""
+
+# -- Additional labels applied to all resources
+extraLabels: {}
+# -- Additional environment variables for the container
+extraEnv: []
+# -- Additional volumes on the pod
+extraVolumes: []
+# -- Additional volumeMounts on the container
+extraVolumeMounts: []
+
+# -- Node labels for pod assignment
+nodeSelector: {}
+# -- Tolerations for pod assignment
+tolerations: []
+# -- Affinity rules for pod assignment
+affinity: {}
+
+# -- Pod annotations
+podAnnotations: {}

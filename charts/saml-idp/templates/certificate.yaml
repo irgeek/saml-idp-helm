@@ -1,0 +1,24 @@
+{{- if .Values.certificate.certManager.enabled -}}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "saml-idp.fullname" . }}
+  labels:
+    {{- include "saml-idp.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "saml-idp.certSecretName" . }}
+  duration: {{ .Values.certificate.certManager.duration }}
+  renewBefore: {{ .Values.certificate.certManager.renewBefore }}
+  commonName: {{ .Values.certificate.certManager.commonName | default (include "saml-idp.fullname" .) }}
+  {{- with .Values.certificate.certManager.dnsNames }}
+  dnsNames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  privateKey:
+    algorithm: {{ .Values.certificate.certManager.privateKey.algorithm }}
+    size: {{ .Values.certificate.certManager.privateKey.size }}
+  issuerRef:
+    name: {{ required "certificate.certManager.issuerRef.name is required when certificate.certManager.enabled is true" .Values.certificate.certManager.issuerRef.name }}
+    kind: {{ .Values.certificate.certManager.issuerRef.kind }}
+    group: {{ .Values.certificate.certManager.issuerRef.group }}
+{{- end }}

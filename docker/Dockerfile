@@ -7,11 +7,13 @@ WORKDIR /app
 RUN apk add --no-cache git \
     && npm install --omit=dev saml-idp@${SAML_IDP_VERSION} \
     && apk del git \
-    && addgroup -S saml-idp \
-    && adduser -S saml-idp -G saml-idp \
+    && addgroup -S -g 1000 saml-idp \
+    && adduser -S -u 1000 -G saml-idp saml-idp \
     && chown -R saml-idp:saml-idp /app
 
-USER saml-idp
+# Numeric UID:GID (not the name) so Kubernetes' runAsNonRoot check can
+# verify non-root without shelling into the image to resolve /etc/passwd.
+USER 1000:1000
 
 EXPOSE 7000
 

@@ -58,6 +58,11 @@
     button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
     button .name { display: block; font-weight: 600; }
     button .email { display: block; font-size: 0.85em; color: var(--muted); overflow-wrap: anywhere; }
+    button.copy {
+      padding: 2px 8px; font-size: 0.8em; margin-left: 4px; white-space: nowrap;
+    }
+    dd.copyable { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+    dd.copyable .mono { overflow-wrap: anywhere; }
     input[type=text] {
       font: inherit; width: 100%; padding: 6px 8px; border-radius: 6px;
       border: 1px solid var(--border); background: var(--bg); color: var(--text);

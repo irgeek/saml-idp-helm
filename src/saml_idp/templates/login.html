@@ -35,6 +35,7 @@
             <td>
               <a href="{{ url_for('cert_metadata', name=cert.name) }}">metadata</a>
               · <a href="{{ url_for('cert_pem', name=cert.name) }}">PEM</a>
+              <button type="button" class="copy" data-copy="{{ cert.pem }}">Copy PEM</button>
             </td>
           </tr>
           {% endfor %}
@@ -81,8 +82,12 @@
     <dt>Requested ACS URL</dt><dd class="mono">{{ authn_request.acs_url or '—' }}</dd>
     {% if relay_state %}<dt>RelayState</dt><dd class="mono">{{ relay_state }}</dd>{% endif %}
     {% endif %}
-    <dt>IdP entity ID</dt><dd class="mono">{{ entity_id }}</dd>
-    <dt>SSO URL</dt><dd class="mono">{{ sso_url }}</dd>
+    <dt>IdP entity ID</dt>
+    <dd class="copyable"><span class="mono">{{ entity_id }}</span>
+      <button type="button" class="copy" data-copy="{{ entity_id }}">Copy</button></dd>
+    <dt>SSO URL</dt>
+    <dd class="copyable"><span class="mono">{{ sso_url }}</span>
+      <button type="button" class="copy" data-copy="{{ sso_url }}">Copy</button></dd>
     <dt>SP entity ID</dt><dd class="mono">{{ config.sp.entity_id }}</dd>
     <dt>SP ACS URL</dt><dd class="mono">{{ config.sp.acs_url }}</dd>
     <dt>Signed</dt><dd>
@@ -92,4 +97,37 @@
       {%- else %}nothing{% endif %}</dd>
   </dl>
 </section>
+
+<script>
+  // navigator.clipboard only exists in secure contexts (HTTPS or localhost),
+  // so fall back to execCommand when the IdP is served over plain HTTP.
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok ? Promise.resolve() : Promise.reject(new Error("copy failed"));
+  }
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("button.copy");
+    if (!button) return;
+    const label = button.dataset.label || button.textContent;
+    button.dataset.label = label;
+    copyText(button.dataset.copy).then(
+      () => { button.textContent = "Copied"; },
+      () => { button.textContent = "Copy failed"; },
+    ).finally(() => {
+      setTimeout(() => { button.textContent = label; }, 1500);
+    });
+  });
+</script>
 {% endblock %}

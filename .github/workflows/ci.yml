@@ -19,19 +19,32 @@ jobs:
       - name: helm template (default values)
         run: |
           helm template test charts/saml-idp \
-            --set idp.acsUrl=https://sp.example.com/acs \
-            --set idp.audience=https://sp.example.com \
-            --set certificate.existingSecret.name=dummy-tls
+            --set sp.entityId=https://sp.example.com \
+            --set sp.acsUrl=https://sp.example.com/acs
 
-      - name: helm template (cert-manager + ingress)
+      - name: helm template (ingress with TLS)
         run: |
           helm template test charts/saml-idp \
-            --set idp.acsUrl=https://sp.example.com/acs \
-            --set idp.audience=https://sp.example.com \
-            --set certificate.certManager.enabled=true \
-            --set certificate.certManager.issuerRef.name=letsencrypt \
+            --set sp.entityId=https://sp.example.com \
+            --set sp.acsUrl=https://sp.example.com/acs \
             --set ingress.enabled=true \
-            --set ingress.className=nginx
+            --set ingress.className=nginx \
+            --set 'ingress.tls[0].hosts[0]=saml-idp.example.com' \
+            --set 'ingress.tls[0].secretName=saml-idp-tls'
+
+  python-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: ruff format
+        run: uv run ruff format --check
+
+      - name: ruff check
+        run: uv run ruff check
 
   docker-build:
     runs-on: ubuntu-latest
@@ -44,5 +57,5 @@ jobs:
       - name: Build image (no push)
         uses: docker/build-push-action@v6
         with:
-          context: docker
+          context: .
           push: false

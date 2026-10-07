@@ -1,6 +1,3 @@
-# -- Number of pod replicas
-replicaCount: 1
-
 image:
   # -- Container image repository
   repository: ghcr.io/irgeek/saml-idp-helm/saml-idp
@@ -18,105 +15,51 @@ nameOverride: ""
 fullnameOverride: ""
 
 idp:
-  # -- Listener host inside the container
-  host: "0.0.0.0"
-  # -- Listener port inside the container
-  port: 7000
-  # -- IdP issuer URI (--issuer)
-  issuer: "urn:example:idp"
-  # -- SP assertion consumer URL (--acs). Required.
-  acsUrl: ""
-  # -- SP audience URI (--aud). Required.
-  audience: ""
-  # -- SP single logout URL (--slo)
-  sloUrl: ""
-  # -- SP issuer/entity URI, if different from audience (--spId)
-  serviceProviderId: ""
-  # -- Authentication context class reference (--acr)
-  authnContextClassRef: ""
-  # -- Path (inside an extraVolume) to an authn context declaration XML file (--acd)
-  authnContextDecl: ""
-  # -- Disable the SP's ability to override the ACS URL in the AuthnRequest (--disableRequestAcsUrl)
-  disableRequestAcsUrl: false
-  # -- Sign the SAML response (--signResponse)
+  # -- Public base URL of the IdP (e.g. https://saml-idp.example.com), used for
+  # the entity ID and the SSO URL in the metadata. Defaults to the first
+  # ingress host when the ingress is enabled; otherwise each request's own URL
+  # is used.
+  baseUrl: ""
+  # -- IdP entity ID (the Issuer of responses). Defaults to <baseUrl>/metadata
+  entityId: ""
+  # -- Sign the SAML Response element
   signResponse: true
-  # -- Encrypt the assertion using the SP's certificate (--encryptAssertion)
-  encryptAssertion: false
-  # -- PEM-encoded SP certificate used for assertion encryption (--encryptionCert), inlined into a Secret
-  encryptionCert: ""
-  # -- Default SAML RelayState (--relayState)
-  relayState: ""
-  # -- Create a new session for every authn request (--rollSession)
-  rollSession: false
-  # -- Extra raw CLI arguments appended after the generated ones
-  extraArgs: []
+  # -- Sign the Assertion element
+  signAssertion: true
+  # -- How long issued assertions are valid for, in seconds
+  assertionLifetimeSeconds: 300
 
-certificate:
-  # -- Use a pre-existing Secret containing the IdP signing certificate/key.
-  # Mutually exclusive with certificate.certManager.enabled -- if neither is
-  # set, the chart fails to render.
-  existingSecret:
-    # -- Name of the existing Secret (type kubernetes.io/tls or plain Opaque)
-    name: ""
-    # -- Key within the Secret holding the PEM certificate
-    certKey: tls.crt
-    # -- Key within the Secret holding the PEM private key
-    keyKey: tls.key
+sp:
+  # -- The SP's entity ID, used as the assertion's audience. Required.
+  entityId: ""
+  # -- The SP's assertion consumer service URL. Required.
+  acsUrl: ""
+  # -- Post responses to the ACS URL named in an SP-initiated AuthnRequest
+  # instead of always using sp.acsUrl
+  allowRequestAcsUrl: false
 
-  certManager:
-    # -- Have the chart create a cert-manager Certificate to issue the signing cert/key
-    enabled: false
-    issuerRef:
-      # -- Name of the cert-manager Issuer/ClusterIssuer to use
-      name: ""
-      # -- Kind of issuer: Issuer or ClusterIssuer
-      kind: ClusterIssuer
-      # -- API group of the issuer
-      group: cert-manager.io
-    # -- Name of the Secret cert-manager will write the cert/key to.
-    # Defaults to "<fullname>-tls" when empty
-    secretName: ""
-    # -- Certificate common name
-    commonName: ""
-    # -- Additional DNS SANs for the certificate
-    dnsNames: []
-    # -- Certificate validity duration
-    duration: 8760h
-    # -- Renew the certificate this long before expiry
-    renewBefore: 720h
-    privateKey:
-      # -- Private key algorithm
-      algorithm: RSA
-      # -- Private key size in bits
-      size: 2048
+# -- SAML attribute names sent for each user field. Set a name to "" to omit
+# that attribute. The NameID is always the user's email address.
+attributeNames:
+  email: email
+  firstName: first_name
+  lastName: last_name
 
-config:
-  # -- Attribute definitions returned in the SAML assertion, rendered into config.js.
-  # Ignored when config.existingConfigMap is set.
-  metadata:
-    - id: email
-      optional: false
-      displayName: E-Mail Address
-      description: The user's email address
-      multiValue: false
-  # -- User profile attribute values, rendered into config.js.
-  # Ignored when config.existingConfigMap is set.
-  user:
-    userName: saml.jackson@example.com
-    email: saml.jackson@example.com
-    firstName: Saml
-    lastName: Jackson
-  # -- Name of a pre-existing ConfigMap containing a config.js key, used instead
-  # of rendering one from config.metadata/config.user
-  existingConfigMap: ""
+# -- Users offered on the login page. Changes are picked up without
+# restarting the pod (and so without regenerating the certificates).
+users:
+  - email: alice@example.com
+    firstName: Alice
+    lastName: Anderson
+  - email: bob@example.com
+    firstName: Bob
+    lastName: Brown
 
 service:
   # -- Kubernetes Service type
   type: ClusterIP
   # -- Service port
   port: 80
-  # -- Container target port
-  targetPort: 7000
 
 ingress:
   # -- Create an Ingress resource
@@ -137,20 +80,23 @@ ingress:
 # -- Pod resource requests/limits
 resources: {}
 
+# -- Resource requests/limits for the certificate-generating init container
+initContainerResources: {}
+
 # -- Pod-level securityContext
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 1000
-  runAsGroup: 1000
-  fsGroup: 1000
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
 
-# -- Container-level securityContext
+# -- Container-level securityContext (applied to the init container too)
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false
+  readOnlyRootFilesystem: true
   runAsNonRoot: true
-  runAsUser: 1000
-  runAsGroup: 1000
+  runAsUser: 10001
+  runAsGroup: 10001
   capabilities:
     drop:
       - ALL

@@ -1,6 +1,6 @@
-saml-idp has been deployed as {{ include "saml-idp.fullname" . }} in namespace {{ .Release.Namespace }}.
+The test SAML IdP has been deployed as {{ include "saml-idp.fullname" . }} in namespace {{ .Release.Namespace }}.
 
-1. Get the application URL:
+1. Open the login page:
 {{- if .Values.ingress.enabled }}
 {{- range .Values.ingress.hosts }}
   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}{{ (first .paths).path }}
@@ -9,10 +9,17 @@ saml-idp has been deployed as {{ include "saml-idp.fullname" . }} in namespace {
   Run the following to get the external IP, it may take a few minutes:
   kubectl get svc -w {{ include "saml-idp.fullname" . }} -n {{ .Release.Namespace }}
 {{- else }}
-  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "saml-idp.fullname" . }} 7000:{{ .Values.service.port }}
-  Then visit http://localhost:7000
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "saml-idp.fullname" . }} 8080:{{ .Values.service.port }}
+  Then visit http://localhost:8080
 {{- end }}
 
-2. SAML metadata is served at /metadata on the above URL.
+2. Configure the SP with:
+  - SSO URL:   <IdP URL>/sso (HTTP-Redirect or HTTP-POST)
+  - Metadata:  <IdP URL>/metadata (first valid certificate), or
+               <IdP URL>/metadata/<certificate> for a specific one
+  - Certificates: <IdP URL>/certs/<certificate>.pem
+  where <certificate> is one of: valid-1, valid-2, expired, not-yet-valid.
 
-3. Signing certificate/key are sourced from Secret "{{ include "saml-idp.certSecretName" . }}".
+3. The signing certificates are generated each time the pod starts, so after a
+   restart the SP must be given the new certificate/metadata. Changes to users
+   or SP settings via `helm upgrade` are picked up without a restart.

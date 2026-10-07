@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{% if authn_request %}Sign in to {{ authn_request.issuer or config.sp.entity_id }}{% else %}Test SAML IdP{% endif %}</h1>
+
+{% for warning in warnings %}
+<div class="warning">{{ warning }}</div>
+{% endfor %}
+
+<form method="post" action="{{ url_for('respond') }}">
+  {% if authn_request %}
+  <input type="hidden" name="request_id" value="{{ authn_request.id }}">
+  <input type="hidden" name="acs_url" value="{{ authn_request.acs_url or '' }}">
+  <input type="hidden" name="relay_state" value="{{ relay_state }}">
+  {% endif %}
+
+  <section>
+    <h2>Signing certificate</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Certificate</th><th>Status</th><th>Valid from</th><th>Valid until</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for cert, status in certs %}
+          <tr>
+            <td>
+              <label class="cert">
+                <input type="radio" name="cert" value="{{ cert.name }}" {% if cert.name == last_cert %}checked{% endif %}>
+                <span class="mono">{{ cert.name }}</span>
+              </label>
+            </td>
+            <td class="status-{{ status.value | replace(' ', '-') }}">{{ status.value }}</td>
+            <td>{{ cert.not_before.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>{{ cert.not_after.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>
+              <a href="{{ url_for('cert_metadata', name=cert.name) }}">metadata</a>
+              · <a href="{{ url_for('cert_pem', name=cert.name) }}">PEM</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Times are UTC.</p>
+  </section>
+
+  <section>
+    <h2>Sign in as</h2>
+    <div class="users">
+      {% for user in config.users %}
+      <button type="submit" name="user" value="{{ user.email }}"
+              {% if user.email == last_user %}class="last" autofocus{% endif %}>
+        <span class="name">{{ user.display_name }}</span>
+        <span class="email">{{ user.email }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <h2>Options</h2>
+    {% if not authn_request %}
+    <p>
+      <label for="relay_state">RelayState <span class="muted">(optional)</span></label>
+      <input type="text" id="relay_state" name="relay_state" value="{{ relay_state }}">
+    </p>
+    {% endif %}
+    <label>
+      <input type="checkbox" name="inspect">
+      Show the SAML response before sending it to the SP
+    </label>
+  </section>
+</form>
+
+<section>
+  <h2>{% if authn_request %}Request{% else %}Configuration{% endif %}</h2>
+  <dl>
+    {% if authn_request %}
+    <dt>Request ID</dt><dd class="mono">{{ authn_request.id }}</dd>
+    <dt>Issuer</dt><dd class="mono">{{ authn_request.issuer or '—' }}</dd>
+    <dt>Requested ACS URL</dt><dd class="mono">{{ authn_request.acs_url or '—' }}</dd>
+    {% if relay_state %}<dt>RelayState</dt><dd class="mono">{{ relay_state }}</dd>{% endif %}
+    {% endif %}
+    <dt>IdP entity ID</dt><dd class="mono">{{ entity_id }}</dd>
+    <dt>SSO URL</dt><dd class="mono">{{ sso_url }}</dd>
+    <dt>SP entity ID</dt><dd class="mono">{{ config.sp.entity_id }}</dd>
+    <dt>SP ACS URL</dt><dd class="mono">{{ config.sp.acs_url }}</dd>
+    <dt>Signed</dt><dd>
+      {%- if config.sign_response and config.sign_assertion %}response and assertion
+      {%- elif config.sign_response %}response only
+      {%- elif config.sign_assertion %}assertion only
+      {%- else %}nothing{% endif %}</dd>
+  </dl>
+</section>
+{% endblock %}

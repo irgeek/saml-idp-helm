@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Signing in…{% endblock %}
+{% block content %}
+<form id="saml-post" method="post" action="{{ acs_url }}">
+  <input type="hidden" name="SAMLResponse" value="{{ saml_response }}">
+  {% if relay_state %}<input type="hidden" name="RelayState" value="{{ relay_state }}">{% endif %}
+
+  {% if inspect %}
+  <h1>SAML response</h1>
+  <section>
+    <dl>
+      <dt>User</dt><dd>{{ user.display_name }} &lt;{{ user.email }}&gt;</dd>
+      <dt>Certificate</dt><dd><span class="mono">{{ cert.name }}</span>
+        (<span class="status-{{ cert_status.value | replace(' ', '-') }}">{{ cert_status.value }}</span>)</dd>
+      <dt>Posting to</dt><dd class="mono">{{ acs_url }}</dd>
+    </dl>
+  </section>
+  <section><pre>{{ xml }}</pre></section>
+  <button type="submit" class="primary">Send to SP</button>
+  {% else %}
+  <h1>Signing in…</h1>
+  <noscript><button type="submit" class="primary">Continue</button></noscript>
+  {% endif %}
+</form>
+{% if not inspect %}
+<script>document.getElementById("saml-post").submit();</script>
+{% endif %}
+{% endblock %}

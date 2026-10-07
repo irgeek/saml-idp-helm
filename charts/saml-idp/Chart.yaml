@@ -1,9 +1,9 @@
 apiVersion: v2
 name: saml-idp
-description: A Helm chart for deploying saml-idp, a test SAML 2.0 Identity Provider
+description: A test SAML 2.0 Identity Provider with switchable users and signing certificates
 type: application
 version: 0.0.0
-appVersion: "1.2.1"
+appVersion: "0.1.0"
 keywords:
   - saml
   - identity-provider
@@ -12,7 +12,6 @@ keywords:
 home: https://github.com/irgeek/saml-idp-helm
 sources:
   - https://github.com/irgeek/saml-idp-helm
-  - https://github.com/mcguinness/saml-idp
 maintainers:
   - name: irgeek
     url: https://github.com/irgeek

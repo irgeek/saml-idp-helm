@@ -1,55 +1,83 @@
 # saml-idp
 
-A Helm chart for deploying [saml-idp](https://www.npmjs.com/package/saml-idp), a test SAML 2.0 Identity
-Provider, to Kubernetes.
+A Helm chart for deploying a test SAML 2.0 Identity Provider that lets you pick the user and the signing
+certificate on every login. See the [repository README](../../README.md) for what the IdP does.
 
 ## Installing
 
 ```console
-helm install my-idp oci://ghcr.io/irgeek/saml-idp-helm/charts/saml-idp \
-  --set idp.acsUrl=https://sp.example.com/saml/acs \
-  --set idp.audience=https://sp.example.com \
-  --set certificate.existingSecret.name=my-idp-tls
+helm install my-idp oci://ghcr.io/irgeek/saml-idp-helm/charts/saml-idp -f my-values.yaml
 ```
 
-## Signing certificate
+with, for example:
 
-`saml-idp` needs an x509 certificate and private key to sign SAML responses. Provide one of:
+```yaml
+sp:
+  entityId: https://sp.example.com
+  acsUrl: https://sp.example.com/saml/acs
 
-- **`certificate.existingSecret.name`** — a Secret (e.g. `kubernetes.io/tls`) you already created,
-  containing `tls.crt` / `tls.key` (key names configurable via `certificate.existingSecret.certKey` /
-  `certificate.existingSecret.keyKey`).
-- **`certificate.certManager.enabled=true`** with `certificate.certManager.issuerRef.name` set — the chart
-  creates a cert-manager `Certificate` that issues the cert/key into a Secret for you.
+users:
+  - email: alice@example.com
+    firstName: Alice
+    lastName: Anderson
+  - email: bob@example.com
+    firstName: Bob
+    lastName: Brown
 
-If neither is set, `helm install`/`helm template` fails immediately with an explanatory error rather than
-deploying a broken pod.
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: saml-idp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts: [saml-idp.example.com]
+      secretName: saml-idp-tls
+```
 
-## Fake user profile
+## Signing certificates
 
-The SAML assertion's user profile/attributes are rendered from `config.user` / `config.metadata` into a
-`config.js` ConfigMap. Set `config.existingConfigMap` to a ConfigMap name (containing a `config.js` key)
-to fully take over instead.
+An init container generates four certificates (`valid-1`, `valid-2`, `expired`, `not-yet-valid`) into
+an in-memory `emptyDir` each time the pod starts. **A pod restart creates new certificates**, so the
+SP has to be given the new certificate or metadata afterwards (`/metadata/<cert>` or
+`/certs/<cert>.pem`).
+
+User, SP and attribute changes made with `helm upgrade` only update the ConfigMap. The running pod picks
+them up within a minute or so, without restarting, so the certificates are kept.
+
+The chart always runs a single replica with the `Recreate` strategy, because each pod has its own
+certificates.
+
+## Base URL and entity ID
+
+The IdP's entity ID defaults to `<baseUrl>/metadata`, and the SSO URL in its metadata is
+`<baseUrl>/sso`. `idp.baseUrl` defaults to the first ingress host (`https://` when `ingress.tls` is
+set). Without an ingress, set `idp.baseUrl` explicitly. Otherwise the URL is taken from each request,
+and the entity ID would change between, say, a port-forward and a cluster-internal URL.
 
 ## Values
 
 | Key | Description | Default |
 |---|---|---|
+| `sp.entityId` | SP entity ID, used as the audience (required) | `""` |
+| `sp.acsUrl` | SP assertion consumer service URL (required) | `""` |
+| `sp.allowRequestAcsUrl` | Honour the ACS URL in an AuthnRequest | `false` |
+| `users` | Users offered on the login page (`email`, `firstName`, `lastName`) | Two example users |
+| `attributeNames.email` | Attribute name for the email (`""` to omit) | `email` |
+| `attributeNames.firstName` | Attribute name for the first name (`""` to omit) | `first_name` |
+| `attributeNames.lastName` | Attribute name for the last name (`""` to omit) | `last_name` |
+| `idp.baseUrl` | Public URL of the IdP | First ingress host |
+| `idp.entityId` | IdP entity ID | `<baseUrl>/metadata` |
+| `idp.signResponse` | Sign the Response element | `true` |
+| `idp.signAssertion` | Sign the Assertion element | `true` |
+| `idp.assertionLifetimeSeconds` | Assertion validity in seconds | `300` |
 | `image.repository` | Container image | `ghcr.io/irgeek/saml-idp-helm/saml-idp` |
 | `image.tag` | Image tag | Chart `appVersion` |
-| `idp.acsUrl` | SP assertion consumer URL (required) | `""` |
-| `idp.audience` | SP audience URI (required) | `""` |
-| `idp.issuer` | IdP issuer URI | `urn:example:idp` |
-| `idp.sloUrl` | SP single logout URL | `""` |
-| `idp.signResponse` | Sign the SAML response | `true` |
-| `idp.encryptAssertion` | Encrypt the assertion (requires `idp.encryptionCert`) | `false` |
-| `certificate.existingSecret.name` | Pre-existing Secret with the signing cert/key | `""` |
-| `certificate.certManager.enabled` | Have cert-manager issue the signing cert/key | `false` |
-| `certificate.certManager.issuerRef.name` | cert-manager Issuer/ClusterIssuer name | `""` |
-| `config.user` | Fake user profile attributes | see `values.yaml` |
-| `config.metadata` | Attribute definitions returned in the assertion | see `values.yaml` |
 | `ingress.enabled` | Create an Ingress | `false` |
 | `service.type` | Service type | `ClusterIP` |
+| `service.port` | Service port | `80` |
 
 See [`values.yaml`](values.yaml) for the full set of configurable values, including resources,
 `serviceAccount`, `extraEnv`/`extraVolumes`/`extraVolumeMounts`, `nodeSelector`/`tolerations`/`affinity`.
